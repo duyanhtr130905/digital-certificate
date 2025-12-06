@@ -65,6 +65,55 @@ function Issuer() {
         }
     };
 
+    const [isBatchMode, setIsBatchMode] = useState(false);
+    const [batchData, setBatchData] = useState('[{"address": "0x...", "name": "A"}, {"address": "0x...", "name": "B"}]');
+
+    const handleBatchMint = async () => {
+        try {
+            const data = JSON.parse(batchData);
+            if (!Array.isArray(data)) return alert("Dữ liệu phải là mảng JSON!");
+            
+            setStatus(`Đang xử lý ${data.length} chứng chỉ... Vui lòng chờ!`);
+            
+            const addresses = [];
+            const uris = [];
+
+            // 1. Upload IPFS cho từng người (Lặp)
+            for (const item of data) {
+                 // Ở đây demo nên ta dùng lại file ảnh cũ đang chọn ở input file
+                 // Thực tế mỗi người cần 1 ảnh khác nhau
+                 if(!file) return alert("Vui lòng chọn 1 ảnh mẫu chung!");
+                 
+                 const imageURI = await uploadToIPFS(file);
+                 const metadata = {
+                    name: "Certificate",
+                    description: `Batch Cert for ${item.name}`,
+                    image: imageURI,
+                    attributes: [{ trait_type: "Student Name", value: item.name }]
+                };
+                const tokenURI = await uploadJSONToIPFS(metadata);
+                
+                addresses.push(item.address);
+                uris.push(tokenURI);
+            }
+
+            // 2. Gọi Smart Contract 1 lần duy nhất
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateABI, signer);
+
+            setStatus("Đang gửi giao dịch Batch Mint lên Blockchain...");
+            const tx = await contract.issueBatch(addresses, uris);
+            await tx.wait();
+            
+            setStatus("Batch Mint thành công!");
+
+        } catch (err) {
+            console.error(err);
+            setStatus("Lỗi format JSON hoặc lỗi mạng");
+        }
+    };
+
     return (
         <div style={{padding: 20}}>
             <h2>1. Cấp Chứng Chỉ (Issuer)</h2>
@@ -82,6 +131,25 @@ function Issuer() {
                 Xác nhận Thu Hồi
             </button>
             <p style={{color: 'red'}}>{revokeStatus}</p>
+            <button onClick={() => setIsBatchMode(!isBatchMode)} style={{background: '#333'}}>
+            {isBatchMode ? "Chuyển về Chế độ Đơn" : "Chuyển sang Chế độ Hàng Loạt"}
+            </button>
+    
+    {isBatchMode && (
+        <div style={{marginTop: 20, background: '#eee', padding: 15}}>
+            <h4>Cấp Hàng Loạt (Batch)</h4>
+            <p>Nhập danh sách JSON (Address & Name):</p>
+            <textarea 
+                rows={5} 
+                style={{width: '100%'}} 
+                value={batchData} 
+                onChange={e => setBatchData(e.target.value)}
+            />
+            <br/>
+            <p><i>Lưu ý: Chọn 1 ảnh ở trên để làm ảnh bằng chung.</i></p>
+            <button onClick={handleBatchMint}>🚀 Cấp {JSON.parse(batchData || "[]").length} Bằng Cùng Lúc</button>
+        </div>
+    )}
         </div>
     );
 }
