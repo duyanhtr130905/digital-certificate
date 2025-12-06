@@ -1,0 +1,99 @@
+/* Reset cơ bản */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.App {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1, h2, h3 {
+  color: #2c3e50;
+}
+
+/* Header */
+header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+header h1 {
+  color: white;
+  margin: 0;
+}
+
+/* Các khung Card */
+div[style*="padding: 20"] { /* Hack nhẹ để style các component con */
+  background: white;
+  border-radius: 12px;
+  padding: 25px !important;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  border: none !important;
+}
+
+/* Input & Button */
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+input:focus {
+  border-color: #764ba2;
+  outline: none;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 10px;
+  transition: transform 0.2s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  background-color: #45a049;
+}
+
+/* Nút Thu hồi (Revoke) */
+button[style*="red"] {
+  background-color: #ff4757 !important;
+}
+button[style*="red"]:hover {
+  background-color: #ff6b81 !important;
+}
+
+/* Gallery ảnh chứng chỉ */
+img {
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  margin-top: 10px;
+  max-width: 100%;
+}
+
+/* Trạng thái */
+p {
+  line-height: 1.6;
+}
