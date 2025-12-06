@@ -7,14 +7,20 @@ import './App.css'; // File CSS làm đẹp (bước sau)
 function App() {
   return (
     <div className="App">
-      <header style={{textAlign: 'center', background: '#282c34', padding: 20, color: 'white'}}>
-        <h1>🎓 Hệ Thống Chứng Chỉ Blockchain</h1>
+      {/* SỬA LẠI HEADER: Xóa style inline, dùng className */}
+      <header className="app-header">
+        <h1>
+          <span className="logo-icon">🎓</span> 
+          <span className="logo-text">EduChain System</span>
+        </h1>
+        <p className="subtitle">Hệ thống quản lý văn bằng phi tập trung</p>
       </header>
       
-      <div style={{maxWidth: 800, margin: '0 auto'}}>
+      {/* Các component giữ nguyên */}
+      <div className="main-container">
         <Issuer />
         <Verifier />
-        <Holder />  {/* <--- Thêm vào đây */}
+        <Holder />
       </div>
     </div>
   );

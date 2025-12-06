@@ -43,8 +43,8 @@ function Verifier() {
     };
 
     return (
-        <div style={{padding: 20, borderTop: "2px solid #333"}}>
-            <h2>Xác minh Chứng chỉ</h2>
+        <div className="glass-card verifier-section">
+            <h2>2.Xác minh Chứng chỉ</h2>
             <input placeholder="Nhập Token ID" onChange={e => setTokenId(e.target.value)} />
             <button onClick={verify}>Kiểm tra</button>
 

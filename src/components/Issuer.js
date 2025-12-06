@@ -3,73 +3,59 @@ import { ethers } from 'ethers';
 import { uploadToIPFS, uploadJSONToIPFS } from '../utils/pinata';
 import CertificateABI from '../artifacts/CertificateSBT.json';
 
+// Lấy địa chỉ từ biến môi trường
 const CONTRACT_ADDRESS = process.env.REACT_APP_CONTRACT_ADDRESS;
+
 function Issuer() {
-    // ... Giữ nguyên các state cũ ...
     const [file, setFile] = useState(null);
     const [name, setName] = useState("");
     const [studentAddr, setStudentAddr] = useState("");
     const [status, setStatus] = useState("");
     
-    // --- THÊM STATE CHO REVOKE ---
+    // State cho Revoke
     const [revokeId, setRevokeId] = useState("");
     const [revokeStatus, setRevokeStatus] = useState("");
 
+    // State cho Batch Mode
+    const [isBatchMode, setIsBatchMode] = useState(false);
+    const [batchData, setBatchData] = useState('');
+
     const handleMint = async () => {
-        // ... (Giữ nguyên code hàm handleMint cũ của bạn) ...
-        // Copy lại đoạn logic mint từ bước trước vào đây
-        // Hoặc nếu bạn lười copy, hãy bảo tôi, tôi sẽ paste full file cho bạn
         if (!file || !name || !studentAddr) return alert("Điền đủ thông tin!");
-        setStatus("Đang xử lý...");
+        setStatus("Đang upload ảnh lên IPFS...");
+
         try {
             const imageURI = await uploadToIPFS(file);
+            
             const metadata = {
                 name: "Certificate of Completion",
                 description: `Chứng chỉ cấp cho ${name}`,
                 image: imageURI,
                 attributes: [{ trait_type: "Student Name", value: name }]
             };
-            const tokenURI = await uploadJSONToIPFS(metadata);
             
+            setStatus("Đang upload Metadata...");
+            const tokenURI = await uploadJSONToIPFS(metadata);
+
+            setStatus("Đang mở ví MetaMask...");
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateABI, signer);
 
             const tx = await contract.issueCertificate(studentAddr, tokenURI);
-            await tx.wait();
-            setStatus("Thành công! ID chứng chỉ mới là bao nhiêu thì check log nhé.");
-        } catch (error) {
-            console.error(error);
-            setStatus("Lỗi: " + error.message);
-        }
-    };
-
-    // --- HÀM MỚI: XỬ LÝ THU HỒI ---
-    const handleRevoke = async () => {
-        if (!revokeId) return alert("Chưa nhập ID!");
-        setRevokeStatus("Đang thu hồi...");
-
-        try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateABI, signer);
-
-            // Gọi hàm revoke trong Smart Contract
-            const tx = await contract.revokeCertificate(revokeId);
+            setStatus("Đang chờ xác nhận giao dịch...");
             await tx.wait();
 
-            setRevokeStatus(`Đã thu hồi thành công ID: ${revokeId}`);
+            setStatus(`Thành công! Chứng chỉ đã được cấp.`);
         } catch (error) {
             console.error(error);
-            setRevokeStatus("Lỗi: Bạn không phải Admin hoặc ID không tồn tại.");
+            setStatus("Có lỗi xảy ra: " + error.message);
         }
     };
-
-    const [isBatchMode, setIsBatchMode] = useState(false);
-    const [batchData, setBatchData] = useState('[{"address": "0x...", "name": "A"}, {"address": "0x...", "name": "B"}]');
 
     const handleBatchMint = async () => {
         try {
+            if(!batchData) return alert("Chưa nhập JSON!");
             const data = JSON.parse(batchData);
             if (!Array.isArray(data)) return alert("Dữ liệu phải là mảng JSON!");
             
@@ -78,13 +64,11 @@ function Issuer() {
             const addresses = [];
             const uris = [];
 
-            // 1. Upload IPFS cho từng người (Lặp)
+            // Upload IPFS (Demo dùng chung 1 ảnh)
+            if(!file) return alert("Vui lòng chọn 1 ảnh mẫu chung!");
+            const imageURI = await uploadToIPFS(file);
+
             for (const item of data) {
-                 // Ở đây demo nên ta dùng lại file ảnh cũ đang chọn ở input file
-                 // Thực tế mỗi người cần 1 ảnh khác nhau
-                 if(!file) return alert("Vui lòng chọn 1 ảnh mẫu chung!");
-                 
-                 const imageURI = await uploadToIPFS(file);
                  const metadata = {
                     name: "Certificate",
                     description: `Batch Cert for ${item.name}`,
@@ -97,12 +81,11 @@ function Issuer() {
                 uris.push(tokenURI);
             }
 
-            // 2. Gọi Smart Contract 1 lần duy nhất
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateABI, signer);
 
-            setStatus("Đang gửi giao dịch Batch Mint lên Blockchain...");
+            setStatus("Đang gửi giao dịch Batch Mint...");
             const tx = await contract.issueBatch(addresses, uris);
             await tx.wait();
             
@@ -110,46 +93,99 @@ function Issuer() {
 
         } catch (err) {
             console.error(err);
-            setStatus("Lỗi format JSON hoặc lỗi mạng");
+            setStatus("Lỗi: " + err.message);
+        }
+    };
+
+    const handleRevoke = async () => {
+        if (!revokeId) return alert("Chưa nhập ID!");
+        setRevokeStatus("Đang thu hồi...");
+
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateABI, signer);
+
+            const tx = await contract.revokeCertificate(revokeId);
+            await tx.wait();
+
+            setRevokeStatus(`Đã thu hồi thành công ID: ${revokeId}`);
+        } catch (error) {
+            console.error(error);
+            setRevokeStatus("Lỗi: " + error.message);
         }
     };
 
     return (
-        <div style={{padding: 20}}>
-            <h2>1. Cấp Chứng Chỉ (Issuer)</h2>
-            <input placeholder="Tên Sinh viên" onChange={e => setName(e.target.value)} />
-            <input placeholder="Địa chỉ ví (0x...)" onChange={e => setStudentAddr(e.target.value)} />
-            <input type="file" onChange={e => setFile(e.target.files[0])} />
-            <button onClick={handleMint} style={{marginLeft: 10}}>Phát hành</button>
-            <p style={{color: 'blue'}}>{status}</p>
+        <div className="glass-card issuer-section">
+            <div className="card-header-flex">
+                <h2>1. Cấp Chứng Chỉ (Issuer Dashboard)</h2>
+                <span className={`mode-badge ${isBatchMode ? 'batch' : 'single'}`}>
+                    {isBatchMode ? 'Mode: Hàng Loạt (Batch)' : 'Mode: Đơn Lẻ (Single)'}
+                </span>
+            </div>
 
-            <hr/>
+            {!isBatchMode ? (
+                /* SINGLE MODE */
+                <div className="input-group animate-fade-in">
+                    <input placeholder="Tên Sinh viên" value={name} onChange={e => setName(e.target.value)} />
+                    <input placeholder="Địa chỉ ví (0x...)" value={studentAddr} onChange={e => setStudentAddr(e.target.value)} />
+                </div>
+            ) : (
+                /* BATCH MODE - Đã sửa lỗi syntax ở dòng dưới */
+                <div className="input-group animate-fade-in">
+                    <p style={{marginBottom: 5, fontSize: '0.9rem', color: '#a7a9be'}}>
+                        Dán danh sách JSON (Format: <code>{'[{"address": "...", "name": "..."}]'}</code>)
+                    </p>
+                    <textarea 
+                        rows={5} 
+                        value={batchData} 
+                        onChange={e => setBatchData(e.target.value)}
+                        placeholder={'[{"address": "0x123...", "name": "Nguyen Van A"}]'}
+                    />
+                </div>
+            )}
 
-            <h3 style={{color: 'red'}}>Khu Vực Nguy Hiểm: Thu Hồi</h3>
-            <input placeholder="Nhập Token ID cần hủy" onChange={e => setRevokeId(e.target.value)} />
-            <button onClick={handleRevoke} style={{backgroundColor: 'red', color: 'white', marginLeft: 10}}>
-                Xác nhận Thu Hồi
-            </button>
-            <p style={{color: 'red'}}>{revokeStatus}</p>
-            <button onClick={() => setIsBatchMode(!isBatchMode)} style={{background: '#333'}}>
-            {isBatchMode ? "Chuyển về Chế độ Đơn" : "Chuyển sang Chế độ Hàng Loạt"}
-            </button>
-    
-    {isBatchMode && (
-        <div style={{marginTop: 20, background: '#eee', padding: 15}}>
-            <h4>Cấp Hàng Loạt (Batch)</h4>
-            <p>Nhập danh sách JSON (Address & Name):</p>
-            <textarea 
-                rows={5} 
-                style={{width: '100%'}} 
-                value={batchData} 
-                onChange={e => setBatchData(e.target.value)}
-            />
-            <br/>
-            <p><i>Lưu ý: Chọn 1 ảnh ở trên để làm ảnh bằng chung.</i></p>
-            <button onClick={handleBatchMint}>🚀 Cấp {JSON.parse(batchData || "[]").length} Bằng Cùng Lúc</button>
-        </div>
-    )}
+            <div style={{margin: '15px 0'}}>
+                <label style={{display: 'block', marginBottom: 5, fontSize: '0.9rem'}}>Chọn ảnh bằng cấp:</label>
+                <input type="file" onChange={e => setFile(e.target.files[0])} />
+            </div>
+
+            <div className="button-group">
+                <button 
+                    className="primary-btn" 
+                    onClick={isBatchMode ? handleBatchMint : handleMint}
+                    style={{flex: 2}}
+                >
+                    {isBatchMode 
+                        ? `🚀 Cấp ${batchData ? JSON.parse(batchData || "[]").length : 0} Bằng` 
+                        : "✨ Phát hành ngay"}
+                </button>
+
+                <button 
+                    className="secondary-btn" 
+                    onClick={() => setIsBatchMode(!isBatchMode)}
+                    style={{flex: 1}}
+                >
+                    {isBatchMode ? "⬅️ Về Đơn lẻ" : "📚 Chế độ Hàng loạt"}
+                </button>
+            </div>
+            
+            <p style={{marginTop: 15, color: '#00e5ff', fontStyle: 'italic'}}>{status}</p>
+
+            <hr style={{borderColor: 'rgba(255,255,255,0.1)', margin: '20px 0'}}/>
+
+            <h3 style={{color: '#ff4757', fontSize: '1rem'}}>Vùng Nguy Hiểm</h3>
+            <div className="revoke-group" style={{display: 'flex', gap: 10}}>
+                <input 
+                    placeholder="ID cần hủy" 
+                    value={revokeId}
+                    onChange={e => setRevokeId(e.target.value)} 
+                    style={{margin: 0}}
+                />
+                <button className="danger-btn" onClick={handleRevoke}>Thu Hồi</button>
+            </div>
+            <p style={{color: '#ff4757', fontSize: '0.9rem'}}>{revokeStatus}</p>
         </div>
     );
 }
